@@ -746,7 +746,12 @@ int wget(SceSize argc, void* argv) {
 
    k=0;
    while (k<20) {
-      if (sceNetApctlGetInfo(8, pspIPAddr) == 0) break;
+      union SceNetApctlInfo apctlInfo;
+      if (sceNetApctlGetInfo(PSP_NET_APCTL_INFO_IP, &apctlInfo) == 0) {
+         strncpy(pspIPAddr, apctlInfo.ip, sizeof(pspIPAddr)-1);
+         pspIPAddr[sizeof(pspIPAddr)-1] = '\0';
+         break;
+      }
       myprint("attempt %d out of 20",k++);
 	if (killwifi) return -1;
       sceKernelDelayThread(1000 * 1000);  // wait a second
@@ -2095,7 +2100,8 @@ int user_main (SceSize args, void *argp) {
 	qsort( options, (optcount-((config.loadwifi>0)?(1):(0))),sizeof(options[0]),opt_cmp);
 	if (skipmenu==0) {
 	Image * background=ldImage("system/background.png");
-	blitAlphaImageToScreen(0,0,PSP_WIDTH,PSP_HEIGHT,background,0,0);
+	if (background!=NULL)
+		blitAlphaImageToScreen(0,0,PSP_WIDTH,PSP_HEIGHT,background,0,0);
 	char label[64]="::: SELECT MAP :::"; translate(label);
         int filenum =display_menu(label, options, optcount, 0 ) ;
 	beep();

@@ -5,23 +5,34 @@ PSPBIN = $(PSPSDK)/../bin
 PSP_EBOOT_PIC1 = PIC1.PNG
 PSP_EBOOT_ICON = ICON0.PNG
 
+# Build mode: user (PSP-290/USB GPS, user-mode PRX, runs under PPSSPP)
+#          or kernel (HOLUX GPSlim236+, kernel-mode module, needs real PSP + CFW)
+# Use "make user" / "make kernel" instead of editing this file.
+MODE ?= user
 
 ###################################################################
-#PSP-290/USB versionSPECIFIC DEFINITIONS::uncomment the lines below
+ifeq ($(MODE),user)
 ###################################################################
-#PSP_FW_VERSION=371
-#BUILD_PRX = 1
-#CFLAGS = -O2  -G0 -Wall -g -DDANZEFF_SCEGU -DNDEBUG
-##LDFLAGS = -mno-crt0 -nostartfiles
-#LDFLAGS = -mno-crt0
-#LIBS =  -lpspdebug  -lpsprtc -lpspgum -lpspgu  -lpsppower  -lpspusb -lpng -lz  -ljpeg -lm -lc -lpspwlan -lmad -lpspaudiolib -lpspaudio -g
+#PSP-290/USB version - USER MODE - runs in PPSSPP
+###################################################################
+PSP_FW_VERSION=371
+BUILD_PRX = 1
+CFLAGS = -O2  -G0 -Wall -g -DDANZEFF_SCEGU -DNDEBUG -fcommon
+LIBS =  -lpspdebug  -lpsprtc -lpspgum -lpspgu  -lpsppower  -lpspusb -lpng -lz  -ljpeg -lm -lc -lpspwlan -lmad -lpspaudiolib -lpspaudio -g
 
 ###################################################################
-#HOLUX GPSlim236+ version DEFINITIONS::uncomment the lines below
+else ifeq ($(MODE),kernel)
 ###################################################################
-CFLAGS = -O2  -G0 -Wall -g -DDANZEFF_SCEGU -DNDEBUG -DGENERIC
-LIBS =  -lpspdebug  -lpsphprm_driver  -lpsprtc   -lpspvfpu -lpspgum   -lpsppower   -lpng -lz  -ljpeg -lm -lpspwlan -lmad -lpspaudiolib -lpspaudio -lpspgu
+#HOLUX GPSlim236+ version - KERNEL MODE - real PSP + CFW only
+###################################################################
+CFLAGS = -O2  -G0 -Wall -g -DDANZEFF_SCEGU -DNDEBUG -DGENERIC -fcommon
+LIBS =  -lpspdebug  -lpsphprm_driver  -lpsprtc   -lpspvfpu -lpspgum   -lpsppower   -lpng -lz  -ljpeg -lm -lpspwlan -lmad -lpspaudiolib -lpspaudio -lpspgu -lpspkernel
 
+###################################################################
+else
+###################################################################
+$(error Unknown MODE '$(MODE)'. Use "make user" or "make kernel")
+endif
 
 
 OBJS =  main.o \
@@ -43,11 +54,31 @@ OBJS =  main.o \
 
 
 
-CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti 
+CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 
 
 EXTRA_TARGETS = EBOOT.PBP
 PSP_EBOOT_TITLE = mView
+
+.PHONY: user kernel
+
+# Build objects from a previous MODE are incompatible (different CFLAGS/ABI),
+# so switching modes forces a clean rebuild automatically.
+user:
+	@if [ -f .buildmode ] && [ "$$(cat .buildmode)" != "user" ]; then \
+		echo "Switching build mode: $$(cat .buildmode) -> user, cleaning..."; \
+		$(MAKE) clean; \
+	fi
+	@echo user > .buildmode
+	$(MAKE) MODE=user all
+
+kernel:
+	@if [ -f .buildmode ] && [ "$$(cat .buildmode)" != "kernel" ]; then \
+		echo "Switching build mode: $$(cat .buildmode) -> kernel, cleaning..."; \
+		$(MAKE) clean; \
+	fi
+	@echo kernel > .buildmode
+	$(MAKE) MODE=kernel all
 
 include $(PSPSDK)/lib/build.mak

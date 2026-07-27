@@ -356,7 +356,7 @@ void readConfig() {
         if (fp==NULL)
                 return;
         char line[128];
-        pspTime rtime;
+        ScePspDateTime rtime;
         sceRtcGetCurrentClockLocalTime(&rtime);
         int hhr = rtime.hour;
         int lochr = hhr;
