@@ -159,7 +159,7 @@ void MP3_OpenAudio(void)
 		mp3_handle = sceAudioChReserve( PSP_AUDIO_NEXT_CHANNEL, mp3_buffer_size, 0 );
 }
 
-void MP3_CloseAudio(vpod)
+void MP3_CloseAudio(void)
 {
 	sceAudioChRelease( mp3_handle );
 	mad_synth_finish(&Synth);

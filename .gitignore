@@ -1,0 +1,16 @@
+# Build artifacts (produced by `make user` / `make kernel`)
+*.o
+*.elf
+*.prx
+EBOOT.PBP
+PARAM.SFO
+.buildmode
+
+# Runtime data - maps and system/ assets are distributed separately from
+# source and placed next to EBOOT.PBP at runtime (see README.txt); local
+# test fixtures live here too and shouldn't be committed.
+/maps/
+/system/
+
+# Editor swap/lock files (e.g. ".!<pid>!<filename>")
+.!*!*

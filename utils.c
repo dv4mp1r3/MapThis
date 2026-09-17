@@ -6,6 +6,7 @@
 #include "main.h"
 #include "menu.h"
 #include "basic.h"
+#include "mapsforge.h"
 
 IMGLIST *img_list=NULL;
 Image *imglist_search(char *name);
@@ -78,7 +79,7 @@ void cleanup (int mapx, int mapy, int zoom,char * zipfile,int datatype) {
         IMGLIST *i=img_list;
         while(i!=NULL) {
 		memset(filename,0,sizeof(filename));
-		if (datatype==1) { //GPSFS
+		if (datatype) { //GPSFS и mapsforge: одинаковый формат имён "%dx%04d%04d.*"
 			cmplen=strlen(i->name);
 			filename[0]=i->name[cmplen-8];
 			filename[1]=i->name[cmplen-7];
@@ -126,7 +127,7 @@ void unload_group (int zoom,char * zipfile,int datatype) {
 	int cmplen;
         IMGLIST *i=img_list;
 	sceKernelWaitSema(tlock,1,0); 
-	  if (datatype==1) {
+	  if (datatype) { //GPSFS и mapsforge: префикс "%dx" без пути
 		sprintf(filename,"%dx",zoom);
 		cmplen=2;
 	  } else {
@@ -518,4 +519,27 @@ Image *loadfromgpsfs(int x , int y, int zm, int sz) {
 	if (s1!=NULL)
         	imglist_add(s1,filename);
         return s1;
+}
+
+// Векторная карта mapsforge: тайл рендерится в память и ложится в LRU-кэш
+// как обычный тайл. x,y — координаты тайла в мире MapThis на делителе zm
+// (мир = TILE_NUM тайлов детального уровня, карта стоит в (0,0)).
+// slippy-зум рендера = base детального интервала - log2(zm).
+// Буфер заполняется всегда (вне bbox — фон), поэтому тайл добавляется
+// в кэш при любом rc — иначе cachemngr будет вечно ретраить.
+Image *loadfrommapsforge(int x , int y, int zm, int nightmode) {
+	char filename[32];
+	Image * s1;
+
+	sprintf(filename,"%dx%04d%04d.MAP",zm,y,x);
+	if((s1=imglist_search(filename))!=NULL) {
+		return s1;
+       	}
+	s1=createImage(256,256);
+	if (s1==NULL)
+		return NULL;
+	mf_render_tile(mf_max_base_zoom()-get_zoom(zm),x,y,s1->data,256,256,s1->textureWidth,nightmode);
+	swizzleImage(s1);
+	imglist_add(s1,filename);
+	return s1;
 }

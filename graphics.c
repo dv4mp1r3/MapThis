@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <pspgu.h>
 
@@ -366,7 +367,7 @@ static int isJpegFile(const char* filename)
 {
 	char* suffix = strrchr(filename, '.');
 	if (suffix) {
-		if (stricmp(suffix, ".jpg") == 0 || stricmp(suffix, ".jpeg") == 0) return true;
+		if (strcasecmp(suffix, ".jpg") == 0 || strcasecmp(suffix, ".jpeg") == 0) return true;
 	}
 	return false;
 }
@@ -659,22 +660,22 @@ png_infop info_ptr;
 
 	info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr == NULL) {
-		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
+		png_destroy_read_struct(&png_ptr, NULL, NULL);
 		ms_write_log("Failed to create info_struct in loadPngImageImpl\n");		// MIB.42_2 to log
 		return NULL;
 	}
 	png_set_sig_bytes(png_ptr, sig_read);
 	png_read_info(png_ptr, info_ptr);
-	png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, &interlace_type, int_p_NULL, int_p_NULL);
+	png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, &interlace_type, NULL, NULL);
 	if (width > 512 || height > 512) {
-		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
+		png_destroy_read_struct(&png_ptr, NULL, NULL);
 		ms_write_log("Width=%d or Height=%d is bigger than 512 in loadPngImageImpl\n",width,height);		// MIB.42_2 to log
 		return NULL;
 	}
 	Image* image = (Image*) malloc(sizeof(Image));
 	if(image==NULL)
 	{
-		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
+		png_destroy_read_struct(&png_ptr, NULL, NULL);
 		ms_write_log("Failed to allocate %d bytes for image in loadPngImageImpl\n",sizeof(Image));		// MIB.42_2 to log
 		return NULL;	
 	}
@@ -685,14 +686,14 @@ png_infop info_ptr;
 	png_set_strip_16(png_ptr);
 	png_set_packing(png_ptr);
 	if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png_ptr);
-	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_gray_1_2_4_to_8(png_ptr);
+	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) png_set_expand_gray_1_2_4_to_8(png_ptr);
 	if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png_ptr);
 	png_set_filler(png_ptr, 0xff, PNG_FILLER_AFTER);
 	image->data = (Color*) memalign(16, image->textureWidth * image->textureHeight * sizeof(Color));
 	if(image->data==NULL)
 	{
 		free(image);
-		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
+		png_destroy_read_struct(&png_ptr, NULL, NULL);
 		ms_write_log("Failed to allocate %d bytes for image->data in loadPngImageImpl\n",(image->textureWidth * image->textureHeight * sizeof(Color)));		// MIB.42_2 to log
 		return NULL;
 	}
@@ -701,12 +702,12 @@ png_infop info_ptr;
 	{
 		free(image->data);
 		free(image);
-		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
+		png_destroy_read_struct(&png_ptr, NULL, NULL);
 		ms_write_log("Failed to allocate %d bytes for line in loadPngImageImpl\n",(width*4));		// MIB.42_2 to log
 		return NULL;
 	}
 	for (y = 0; y < height; y++) {
-		png_read_row(png_ptr, (u8*) line, png_bytep_NULL);
+		png_read_row(png_ptr, (u8*) line, NULL);
 		for (x = 0; x < width; x++) {
 			u32 color = line[x];
 			if (negate) {
@@ -721,7 +722,7 @@ png_infop info_ptr;
 	}
 	free(line);
 	png_read_end(png_ptr, info_ptr);
-	png_destroy_read_struct(&png_ptr, &info_ptr, png_infopp_NULL);
+	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	return image;
 }
 
@@ -970,7 +971,7 @@ METHODDEF(void) mem_term_source (j_decompress_ptr cinfo) {
 }
 
 
-GLOBAL(void) jpeg_mem_src (j_decompress_ptr cinfo, const unsigned char *mbuff, int mbufflen) {
+GLOBAL(void) my_jpeg_mem_src (j_decompress_ptr cinfo, const unsigned char *mbuff, int mbufflen) {
 	mem_src_ptr src;
 
 	if (cinfo->src == NULL) {	/* first time for this JPEG object? */
@@ -1049,7 +1050,7 @@ Image* loadImageFromMemory(const unsigned char* data, int len)
 		struct jpeg_error_mgr jerr;
 		dinfo.err = jpeg_std_error(&jerr);
 		jpeg_create_decompress(&dinfo);
-		jpeg_mem_src(&dinfo, data, len);
+		my_jpeg_mem_src(&dinfo, data, len);
 		Image* image = loadJpegImageImpl(dinfo, config.nightmode);
 		if(image == NULL)	// MIB.42_2 extra check to lg
 		{
