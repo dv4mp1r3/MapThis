@@ -514,6 +514,8 @@ void displayMap() {
                         sceKernelDelayThread(1);
                         if (datatype==1)
                                         sprintf(filename,"%dx%04d%04d.GPS", zm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE);
+                        else if (datatype==2)
+                                        sprintf(filename,"%dx%04d%04d.MAP", zm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE);
                         else
                                 sprintf(filename,"%s/%dx/%03d/%dx%03d%03d.%s",zipfile,zm, (int) ty/TILE_SIZE, zm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE,filetype);
                         current=loadfromcache(filename);
@@ -699,6 +701,8 @@ Coord getDistanceToRoad(int mapx,int mapy,int zm,int TILE_NUM,int size)
                         //sceKernelDelayThread(1);
                         if (datatype==1)
                                         sprintf(filename,"%dx%04d%04d.GPS", zm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE);
+                        else if (datatype==2)
+                                        sprintf(filename,"%dx%04d%04d.MAP", zm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE);
                         else
                                 sprintf(filename,"%s/%dx/%03d/%dx%03d%03d.%s",zipfile,zm, (int) ty/TILE_SIZE, zm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE,filetype);
                         current=loadfromcache(filename);

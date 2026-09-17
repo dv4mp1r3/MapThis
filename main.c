@@ -11,6 +11,7 @@
 #include "menu.h"
 #include "geodata.h"
 #include "mp3player.h"
+#include "mapsforge.h"
 
 extern Coord getDistanceToRoad(int mapx,int mapy,int zm,int TILE_NUM,int size);
 void sioInit(int baud);
@@ -1013,9 +1014,11 @@ void readMapListings(void) {
 	unload_group(4096,zipfile,datatype);
         imglist_garbagecollect();
 	sceKernelDelayThread(500000);
+	if (datatype==2)
+		mf_close();
 	if (datatype==1)
 		gpsfsClose();
-	if (attr_flag==1) 
+	if (attr_flag==1)
               turn_off_attractions();
 	cleanup_output();
         sceKernelExitGame();
@@ -1569,6 +1572,7 @@ int map_upload_menu() {
 
 int display_menu(char * t, char options[][60] , int size, int cur ) {
         int i, timer=0;
+	u32 prevbtn;   /* прошлое состояние кнопок: X ловим фронтом нажатия */
 	int topline=0;
 	char title[64];
 	char filename[128];
@@ -1610,14 +1614,29 @@ int display_menu(char * t, char options[][60] , int size, int cur ) {
 	Image * menuwindow=ldImage("system/menuwindow.png");
 	Image * hilite=ldImage("system/hilite.png");
 
-        while (!((cpad.Buttons & PSP_CTRL_CROSS )&& timer>10/(333/Clock))) {
-	 	sceCtrlPeekBufferPositive(&cpad, 1); 
+	/* выход по ФРОНТУ нажатия X: раньше требовался уровень + timer>10,
+	 * но timer сбрасывается каждым срабатыванием стрелки (удерживаемый
+	 * аналоговый стик вниз/вверх срабатывает постоянно), и стик
+	 * блокировал крестик насовсем, а короткое нажатие сразу после
+	 * движения курсора игнорировалось. Фронт ловит однократное нажатие
+	 * всегда и не проваливается зажатой на входе в меню кнопкой. */
+	ms_write_log("menu enter '%s': size=%d cur=%d\n", title, size, cur);
+	sceCtrlPeekBufferPositive(&cpad, 1);
+	prevbtn = cpad.Buttons;
+        while (1) {
+	 	sceCtrlPeekBufferPositive(&cpad, 1);
                 sceKernelDelayThread(1);
+		if ((cpad.Buttons & ~prevbtn) & PSP_CTRL_CROSS) {
+			ms_write_log("menu: X front, cur=%d\n", cur);
+			break;
+		}
+		prevbtn = cpad.Buttons;
 
 
 		if ((cpad.Buttons & PSP_CTRL_CIRCLE) && timer>7/(333/Clock)) {
+			ms_write_log("menu: CIRCLE, cur=%d\n", cur);
 			timer=0;
-			circle=1;	
+			circle=1;
 			break;
 		}
 		if ((cpad.Buttons & PSP_CTRL_SELECT) && timer>10/(333/Clock)) {
@@ -1668,8 +1687,11 @@ int display_menu(char * t, char options[][60] , int size, int cur ) {
 		}else
 			fillScreenRect(0x000000cc,12,28,455,232);
                 draw_string( title, PSP_WIDTH/2-strlen(title)*4, 34);
-		drawHiliteBar(hilite,20,(cur-topline)*15+54,55 ); 
-		drawHiliteBar(hilite,20,(cur-topline)*15+62,55 ); 
+		if (hilite!=NULL) {
+			drawHiliteBar(hilite,20,(cur-topline)*15+54,55 );
+			drawHiliteBar(hilite,20,(cur-topline)*15+62,55 );
+		} else	/* нет system/hilite.png — курсор заливкой, чтобы выбор был виден */
+			fillScreenRect(0xFFC87850,20,(cur-topline)*15+54,440,15);
                 for (i=0; i<13 && i<size; i++) {
 			strcpy(filename,options[i+topline]);
 			//toUpperCase(filename);
@@ -1722,6 +1744,14 @@ void load_coords(char* zipfile) {
 		basezoom=gpsfsGetBaseZoom();
                	c=getLatLong((int)ftx,(int)fty,basezoom);
 		return;
+	} else if (datatype==2) { //mapsforge: СЗ-угол сетки детального интервала
+		int btx, bty;
+		mf_base_tile(&btx,&bty);
+		ftx=(double)btx;
+		fty=(double)bty;
+		basezoom=17-mf_max_base_zoom();
+               	c=getLatLong((int)ftx,(int)fty,basezoom);
+		return;
 	} else {
 		sprintf(line, "%s/coords.txt",zipfile);
 		 fp = fopen(line, "r");
@@ -1764,6 +1794,8 @@ int detect_size(char *zipfile) {
 	//check png vs jpg
 	if (datatype==1) {
 		return gpsfsGetMapDimension();
+	} else if (datatype==2) { //mapsforge: 2^base детального интервала
+		return mf_tile_num();
 	} else {
 		sprintf(filename, "%s/1x/000/1x000000.jpg",zipfile);
 		first=loadfromdir(filename);
@@ -1851,11 +1883,15 @@ int cachemngr (SceSize args, void *argp) {
 			//sceKernelDelayThread(1000);
 			if (datatype==1)
 				sprintf(filename,"%dx%04d%04d.GPS", newzm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE);
+			else if (datatype==2)
+				sprintf(filename,"%dx%04d%04d.MAP", newzm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE);
 			else
 				sprintf(filename,"%s/%dx/%03d/%dx%03d%03d.%s",zipfile, newzm, (int)ty/TILE_SIZE, newzm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE,filetype);
 			if (tx > mapx/newzm - PSP_WIDTH/2 - TILE_SIZE-RADIUS &&  tx < mapx/newzm + PSP_WIDTH/2+RADIUS && ty > mapy/newzm - PSP_WIDTH - TILE_SIZE-RADIUS && ty < mapy/newzm + PSP_WIDTH+RADIUS)  {
 				if (datatype==1)
 					loadfromgpsfs((int) tx/TILE_SIZE,(int)ty/TILE_SIZE,newzm,TILE_NUM);
+				else if (datatype==2)
+					loadfrommapsforge((int) tx/TILE_SIZE,(int)ty/TILE_SIZE,newzm,config.nightmode);
 				else
 					loadfromdir_check4blank(filename,config.nightmode);
 			} else 
@@ -2104,6 +2140,7 @@ int user_main (SceSize args, void *argp) {
 		blitAlphaImageToScreen(0,0,PSP_WIDTH,PSP_HEIGHT,background,0,0);
 	char label[64]="::: SELECT MAP :::"; translate(label);
         int filenum =display_menu(label, options, optcount, 0 ) ;
+	ms_write_log("menu returned %d\n", filenum);
 	beep();
 	if (filenum<0) {
 		if (filenum<=-100000)
@@ -2111,6 +2148,7 @@ int user_main (SceSize args, void *argp) {
 		else
 		filenum=-filenum-1;
 	}
+	ms_write_log("selected map '%s'\n", options[filenum]);
 	//fprintf(stdout,"[%s]\n",options[filenum]);
 	if (strcmp(options[filenum],"===_WIFI_MAP_UPLOAD_===")==0) {
 		if (config.loadwifi)
@@ -2131,14 +2169,17 @@ int user_main (SceSize args, void *argp) {
 
         display_message("","PLEASE WAIT WHILE MAP IS LOADING","",0);
 
-	if (gpsfsOpen(zipfile)>0)
-		datatype=1; //gpsfs 
+	if (mf_open(zipfile)>0)
+		datatype=2; //mapsforge vector map
+	else if (gpsfsOpen(zipfile)>0)
+		datatype=1; //gpsfs
 	else
 		datatype=0;
 
 
 
 	TILE_NUM=detect_size(zipfile);
+	ms_write_log("map load: zipfile='%s' datatype=%d TILE_NUM=%d\n", zipfile, datatype, TILE_NUM);
 	if (TILE_NUM==1)
         	display_message("MAP SIZE SEEMS TO BE VERY SMALL!","CONSIDER RE-BUILDING THIS MAP.","PRESS [X] TO PROCEED..",30000);
 	load_coords(zipfile);
@@ -2204,6 +2245,7 @@ int user_main (SceSize args, void *argp) {
 	timer=0;
 	atimer=0;
 	alerttimer=50;
+	ms_write_log("entering map loop: mapx=%ld mapy=%ld zoom=%d zm=%d\n", mapx, mapy, zoom, zm);
 	while (!((cpad.Buttons & PSP_CTRL_SELECT) && timer>10/(333/Clock))) {
 	timer++;
 	atimer++;
@@ -2691,9 +2733,11 @@ int user_main (SceSize args, void *argp) {
 	sceKernelDelayThread(500000);
 	save_map_prefs (mapx,mapy,  zoom); 
 
+	if (datatype==2)
+		mf_close();
 	if (datatype==1)
 		gpsfsClose();
-	if (attr_flag==1) 
+	if (attr_flag==1)
               turn_off_attractions();
 	}
 	running=0;

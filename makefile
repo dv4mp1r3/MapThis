@@ -50,7 +50,8 @@ OBJS =  main.o \
 	basic.o \
 	menu.o \
 	sioprx.o \
-	display.o
+	display.o \
+	mapsforge.o
 
 
 

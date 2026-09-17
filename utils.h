@@ -33,6 +33,7 @@ long gpsfsGetTotalTiles ();
 int gpsfsGetMapDimension();
 long gpsfsGetFileSize(int i);
 Image *loadfromgpsfs(int x , int y, int zm, int sz);
+Image *loadfrommapsforge(int x , int y, int zm, int nightmode);
 int gpsfsOpen(char * dirname);
 void gpsfsClose();
 void cleanup (int mapx, int mapy, int zoom,char * zipfile,int datatype);
