@@ -324,7 +324,7 @@ int gpsmngr (SceSize args, void *argp) {
         sceUsbGpsSetInitDataLocation(config.initLocation);
 
        while (running) {
-	
+
 
         ms_write_log("+\n");
 	if (config.fakefeed) {
@@ -1856,8 +1856,12 @@ int cachemngr (SceSize args, void *argp) {
 	char filename[128]; 
 
 	while (running) {
+		static int logged = 0;		// MIB.42_2 diagnostics
 		if (!idle) {
-
+		if (!logged) {
+			logged=1;
+			ms_write_log("cachemngr: pass start datatype=%d newzm=%d\n",datatype,newzm);
+		}
 		tx=  (mapx/newzm - PSP_WIDTH/2 - TILE_SIZE-RADIUS)/TILE_SIZE*TILE_SIZE;
 		ty=  (mapy/newzm - PSP_WIDTH/2 - TILE_SIZE-RADIUS)/TILE_SIZE*TILE_SIZE;
 		if (tx<0) tx=0;
@@ -2236,6 +2240,10 @@ int user_main (SceSize args, void *argp) {
                 ms_write_log("Failed to start garbage_collector_thread!\n");
 	
 	displayInit();
+	// MIB.42_2: в оригинале матрицы проекции/вида ставил blitRotatedImage при показе
+	// system/splashscreen.png; если файла нет, gum-матрицы остаются нулевыми и
+	// 3D-рисование тайлов (blitMapTile) ничего не выводит. Настраиваем сцену явно.
+	setScene(config.rotatemap);
 
 	sceCtrlSetSamplingCycle(0);
 	sceCtrlSetSamplingMode(1);

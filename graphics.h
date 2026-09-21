@@ -399,7 +399,7 @@ void drawGuLine(float x1, float y1, float x2, float y2, Color c,float width, int
 void blitSprite(Image *img, float x, float y, double angle, int mode, int hilite,float fixvar, float anglevar);
 void blitRotatedImage(Image *img, float x, float y, double angle, int mode);
 void blitMapTile(Image *img, float x, float y, double angle, int mode , float fixvar, float anglevar);
-void swizzleImage(Image *);
+Image* swizzleImage(Image *);
 void setScene(int mode);
 void FillPolygon(float* x, float* y, int count, Color color, int mode, double angle); 
 void DrawThickLine(float x1, float y1, float x2, float y2, Color color, float lineWidth, int mode, double angle, float fixvar, float anglevar);
