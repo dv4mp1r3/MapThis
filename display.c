@@ -57,8 +57,12 @@ _|      _|  _|    _|  _|            _|      _|    _|  _|_|_|  _|_|_|  ");
 
 void splashscreen() {
         Image * splashscreen=ldImage("system/splashscreen.png");
-        blitAlphaImageToScreen(0,0,PSP_WIDTH,PSP_HEIGHT,splashscreen,0,0);
-        flipScreen();
+        if (splashscreen==NULL) {
+                ms_write_log("splashscreen: system/splashscreen.png not found, skipping\n");		// MIB.42_2 to log
+        } else {
+                blitAlphaImageToScreen(0,0,PSP_WIDTH,PSP_HEIGHT,splashscreen,0,0);
+                flipScreen();
+        }
         sceKernelDelayThread(2000000);
         if (splashscreen!=NULL)
                 freeImage(splashscreen);
@@ -186,6 +190,13 @@ void displayInit()
     compass = ldImage("system/compass.png");
     arrow2mark = ldImage("system/arrow2mark.png");
     blank = ldImage("system/blank.png");
+    if (blank==NULL) {	// MIB.42_2: файла нет — заглушка цветом фона карты
+        blank=createImage(TILE_SIZE,TILE_SIZE);
+        if (blank!=NULL) {
+            fillImageRect(0xffeef5f5,0,0,TILE_SIZE,TILE_SIZE,blank);
+            blank=swizzleImage(blank);
+        }
+    }
     scale = ldImage("system/scale.png");
     battery = ldImage("system/battery.png");
     topplate = ldImage("system/topplate.png");
@@ -496,7 +507,8 @@ void displayMap() {
     char filename[128];
     int tx,ty, tyfix, tmpx,tmpy;
     int counter=0;
-    
+    static int logged=0;
+    int found=0;
     if (zoom<1) zoom = 1;            
 	sceKernelDelayThread(10);
         tx=  (mapx/zm - PSP_WIDTH/2 - TILE_SIZE)/TILE_SIZE*TILE_SIZE;
@@ -519,6 +531,7 @@ void displayMap() {
                         else
                                 sprintf(filename,"%s/%dx/%03d/%dx%03d%03d.%s",zipfile,zm, (int) ty/TILE_SIZE, zm, (int)ty/TILE_SIZE, (int) tx/TILE_SIZE,filetype);
                         current=loadfromcache(filename);
+                        if (current!=NULL) found++;
                         tmpx=tx-mapx/zm+PSP_WIDTH/2;
                         tmpy=ty-mapy/zm+PSP_HEIGHT/2;
 
@@ -534,6 +547,12 @@ void displayMap() {
                 }
                 tx+=TILE_SIZE;
         }
+
+        if (!logged) {	// MIB.42_2 diagnostics
+                logged=1;
+                ms_write_log("displayMap: found=%d blank=%s\n",found,(blank!=NULL)?"ok":"NULL");
+        }
+
 
 
 

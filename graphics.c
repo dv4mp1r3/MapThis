@@ -54,15 +54,13 @@ void drawHiliteBar(Image * hilite,int x,int y, int width) {
 Image* ldImage(const char* filename) {
         Image *img = loadImage(filename);
 	ms_write_log("opening image: %s\n", filename);		// MIB.42_2 to log
-        swizzleImage(img);
-        return img;
+        return swizzleImage(img);
 }
 
 
 Image* ldImage1(const char* filename,int negate) {
         Image *img = loadImage1(filename,negate);
-        swizzleImage(img);
-        return img;
+        return swizzleImage(img);
 }
 
 
@@ -374,6 +372,8 @@ static int isJpegFile(const char* filename)
 
 
 void blitRotatedImage(Image *img, float x, float y, double angle, int mode ) {
+	if (img==NULL)
+		return;
 	float w = (float)(img->imageWidth)/512.0f*DIST;
 	float h = (float)(img->imageHeight)/512.0f*DIST;	
 	if (x<0 || x >512)
@@ -450,6 +450,8 @@ void setScene( int mode) {
 }
 
 void blitSprite(Image *img, float x, float y, double angle, int mode, int hilite, float fixvar, float anglevar) {
+	if (img==NULL)
+		return;
 	float xangle = 0.0;
 	float w = (float)(img->imageWidth)/512.0f*DIST; //trying to fix gapsbetween tiles
 	float h = (float)(img->imageHeight/2)/512.0f*DIST;	
@@ -515,8 +517,21 @@ void blitSprite(Image *img, float x, float y, double angle, int mode, int hilite
 
 
 void blitMapTile(Image *img, float x, float y, double angle, int mode, float fixvar, float anglevar)  {
-	if (img==NULL || img->data==NULL || img->textureWidth!=256 || img->textureHeight!=256)
+	static int blogged = 0;		// MIB.42_2 diagnostics
+	if (img==NULL || img->data==NULL || img->textureWidth!=256 || img->textureHeight!=256) {
+		if (!blogged) {
+			blogged=1;
+			ms_write_log("blitMapTile REJECT: img=%p data=%p tw=%d th=%d\n",
+				(void*)img,(img!=NULL)?(void*)img->data:NULL,
+				(img!=NULL)?img->textureWidth:-1,(img!=NULL)?img->textureHeight:-1);
+		}
 		return;
+	}
+	if (!blogged) {
+		blogged=1;
+		ms_write_log("blitMapTile draw: data=%p tw=%d th=%d x=%.0f y=%.0f mode=%d\n",
+			(void*)img->data,img->textureWidth,img->textureHeight,x,y,mode);
+	}
 	float z=ZNORM;
 	float xangle = 0.0;
 
@@ -580,6 +595,8 @@ void blitMapTile(Image *img, float x, float y, double angle, int mode, float fix
 
 
 void blitSprite2(Image *img, float x, float y, double angle, int mode) {
+	if (img==NULL)
+		return;
 	x=x+img->imageWidth/2;
 	y=y+img->imageHeight/2;
 	verts[0].x=1.0f-x/256;
@@ -1063,6 +1080,8 @@ Image* loadImageFromMemory(const unsigned char* data, int len)
 void blitImageToImage2(int sx, int sy, int width, int height, Image* source, int dx, int dy, Image* destination)
 {
 
+	if (source==NULL || destination==NULL)
+		return;
 	if (dx<(-width) || dy<(-height))
 		return;
 
@@ -1103,6 +1122,8 @@ void blitImageToImage2(int sx, int sy, int width, int height, Image* source, int
 void blitImageToImage(int sx, int sy, int width, int height, Image* source, int dx, int dy, Image* destination)
 {
 
+	if (source==NULL || destination==NULL)
+		return;
 	if (dx<(-width) || dy<(-height))
 		return;
 
@@ -1143,6 +1164,7 @@ void blitImageToImage(int sx, int sy, int width, int height, Image* source, int 
 
 void blitImageToScreen(int sx, int sy, int width, int height, Image* source, int dx, int dy)
 {
+	if (source==NULL) return;	// MIB.42_2 extra check
 	if (!initialized) return;
 	Color* vram = getVramDrawBuffer();
 	sceKernelDcacheWritebackInvalidateAll();
@@ -1153,6 +1175,8 @@ void blitImageToScreen(int sx, int sy, int width, int height, Image* source, int
 }
 void blitAlphaImageToImage(int sx, int sy, int width, int height, Image* source, int dx, int dy, Image* destination)
 {
+	if (source==NULL || destination==NULL)
+		return;
 	Color* destinationData = &destination->data[destination->textureWidth * dy + dx];
 	int destinationSkipX = destination->textureWidth - width;
 	Color* sourceData = &source->data[source->textureWidth * sy + sx];
@@ -1193,6 +1217,7 @@ void blitAlphaImageToImage(int sx, int sy, int width, int height, Image* source,
 
 void blitAlphaImageToScreen(int sx, int sy, int width, int height, Image* source, int dx, int dy)
 {
+	if (source==NULL) return;	// MIB.42_2 extra check
 	if (!initialized) return;
 
 	sceKernelDcacheWritebackInvalidateAll();
@@ -1282,10 +1307,10 @@ Image* createImage(int width, int height)
 return image;
 }
 
-void swizzleImage( Image* img )
+Image* swizzleImage( Image* img )
 {
 	if (img==NULL)
-		return;
+		return NULL;
       long size = img->textureWidth * img->textureHeight * 4;
       u8* temp = (u8*)malloc(size);
 	if (temp!=NULL) {
@@ -1299,7 +1324,8 @@ void swizzleImage( Image* img )
 		fprintf(stdout,"Failed to allocate %ld bytes for data in swizzleImage\n",size);
 		img=NULL;
 	}
-} 
+	return img;
+}
 
 
 void freeImage(Image* image)
@@ -1314,6 +1340,8 @@ void freeImage(Image* image)
 
 void clearImage(Color color, Image* image)
 {
+	if (image==NULL)	// MIB.42_2 extra check
+		return;
 	int i;
 	int size = image->textureWidth * image->textureHeight;
 	Color* data = image->data;

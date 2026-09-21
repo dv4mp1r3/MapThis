@@ -402,7 +402,7 @@ int     totaltiles;
         Image* img=loadImageFromMemory(data, size);
         free(data);
 	if (swizzle)
-		swizzleImage(img);
+		img = swizzleImage(img);
         return img;
 }
 
@@ -515,7 +515,7 @@ Image *loadfromgpsfs(int x , int y, int zm, int sz) {
 			freeImage(q1);
 		}
 	}
-	swizzleImage(s1);
+	s1=swizzleImage(s1);
 	if (s1!=NULL)
         	imglist_add(s1,filename);
         return s1;
@@ -538,8 +538,14 @@ Image *loadfrommapsforge(int x , int y, int zm, int nightmode) {
 	s1=createImage(256,256);
 	if (s1==NULL)
 		return NULL;
-	mf_render_tile(mf_max_base_zoom()-get_zoom(zm),x,y,s1->data,256,256,s1->textureWidth,nightmode);
-	swizzleImage(s1);
+	int mz = mf_max_base_zoom()-get_zoom(zm);
+	int rc = mf_render_tile(mz,x,y,s1->data,256,256,s1->textureWidth,nightmode);
+	if (rc!=MF_OK)
+		ms_write_log("mf_render_tile(%s) z=%d rc=%d (%s)\n",filename,mz,rc,mf_strerror());		// MIB.42_2 to log
+	s1=swizzleImage(s1);
+	if (s1==NULL)
+		return NULL;
 	imglist_add(s1,filename);
+	ms_write_log("mf tile added: %s\n",filename);		// MIB.42_2 to log
 	return s1;
 }
